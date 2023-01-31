@@ -121,21 +121,13 @@ namespace RayCast {
 			});
 		}
 		public class WallImpact {
-			public int TileNumber = -1;
-			public JT.Pect pect = new JT.Pect();
-			public float impactDirection = 0;
-			public WallImpact(int TileNumber, JT.Pect pect, float impactDirection) {
-				this.TileNumber = TileNumber;
-				this.pect = pect;
-				this.impactDirection = impactDirection;
-			}
-			public string ToDebugString() {
-				return "Pect: (" + pect.ToDebugString() + "), impactDirection: " + impactDirection.ToString() + ", TileNumber: " + TileNumber.ToString();
+			public float height;
+			public int[] color;
+			public WallImpact(float height, int[] color) {
+				this.height = height;
+				this.color = color;
 			}
 		}
-		//private WallImpact ShootRay(Graphics CanvasToDraw, float RelativeDirection, double Distance, bool drawRays = true, bool DistanceSpeeder = true, bool BackupSpeeder = true) {
-		//	return ShootRay(CanvasToDraw, mainCamera.pect, RelativeDirection, Distance, DistanceSpeeder, BackupSpeeder);
-		//}
 		private WallImpact ShootRay(Graphics CanvasToDraw, float RelativeDirection, float DepthRes, bool drawRays = true, bool FancyStuff = false) {
 			JT.Pect StartPect = mainCamera.pect.Clone();
 			StartPect.Direction += RelativeDirection;
@@ -143,11 +135,6 @@ namespace RayCast {
 			float Distance = 0;
 			while (CurrentLevel.Data[StartPect.yI][StartPect.xI] == 0) {
 				Bcolor = Brushes.Blue;
-				//if (FancyStuff) {
-				//	double distanceScaler = 8*(new double[] { Math.Abs((int)(StartPect.x + 0.5) - StartPect.x), Math.Abs((int)(StartPect.y + 0.5) - StartPect.y) }.Min());
-				//	if (distanceScaler < distanceScalerMinimum) { distanceScaler = distanceScalerMinimum; Bcolor = Brushes.Yellow; }
-				//	NewDistance = Distance * distanceScaler;
-				//}
 				StartPect.Move(DepthRes);
 				Distance += DepthRes;
 
@@ -159,7 +146,6 @@ namespace RayCast {
 			}
 			while (CurrentLevel.Data[StartPect.yI][StartPect.xI] != 0) {
 				StartPect.Move(-DepthRes / 4);
-				//StartPect.Move(-DepthRes / (float)(Math.Pow(2, 4 - (0.5 * Distance)) + 1));
 				Bcolor = Brushes.Yellow;
 				if (drawRays) {
 					int ax = (int)(StartPect.x * scalingFactor) + xOffset;
@@ -169,7 +155,6 @@ namespace RayCast {
 			}
 			while (CurrentLevel.Data[StartPect.yI][StartPect.xI] == 0) {
 				StartPect.Move(DepthRes / 8);
-				//StartPect.Move(-DepthRes / (float)(Math.Pow(2, 4 - (0.5 * Distance)) + 1));
 				Bcolor = Brushes.Green;
 				if (drawRays) {
 					int ax = (int)(StartPect.x * scalingFactor) + xOffset;
@@ -199,12 +184,28 @@ namespace RayCast {
 				}
 			}
 			StartPect.Direction = oldDir; // Return direction to it's original value
-			return new WallImpact(CurrentLevel.Data[StartPect.yI][StartPect.xI], StartPect, impactDirection);
+
+			// Visual
+			float distance = mainCamera.pect.Distance(StartPect);
+			distance = LensCorrect(mainCamera.pect.Direction - StartPect.Direction, distance);
+			distance = (distance < 0.2f) ? 0.2f : distance;
+			float height = (0.4f / distance) * raycastView.Height;
+
+			// Color
+			int ColorNS = (JT.CompassDirection(impactDirection) == JT.NSEW.N || JT.CompassDirection(impactDirection) == JT.NSEW.S) ? 1 : 0;
+			int[] color = (int[])(WallColors[CurrentLevel.Data[StartPect.yI][StartPect.xI]][ColorNS]).Clone();
+			for (int c = 0; c < color.Length; c++) { // Loop through each of r, g, and b
+				color[c] = (int)(color[c] * (1 / distance));    // Use distance to darken the color
+				color[c] = (color[c] > 255) ? 255 : color[c];   // Bound to 255
+			}
+
+
+			return new WallImpact(height, color);
 		}
 		private void ShootRays(Graphics CanvasToDraw, bool drawRays = true) {
 			RayLock = true;
 			wallImpacts.Clear();
-			int lines = raycastView.Widt / mainCamera.Res; // lines to draw
+			int lines = raycastView.Width / mainCamera.Res; // lines to draw
 			float degreesPerTurn = (float)mainCamera.FOV / lines;
 			for (int i = -lines / 2; i <= lines / 2 + 1; i++) {
 				WallImpact impact = ShootRay(CanvasToDraw, i * degreesPerTurn, mainCamera.DepthRes, drawRays: drawRays);
@@ -237,24 +238,9 @@ namespace RayCast {
 				for (int i = 0; i < wallImpacts.Count - 1; i++) {
 					float width = mainCamera.Res;
 					float x = i * width;
+					float y = (raycastView.Height - wallImpacts[i].height) / 2;
 
-
-					float distance = mainCamera.pect.Distance(wallImpacts[i].pect);
-					distance = LensCorrect(mainCamera.pect.Direction - wallImpacts[i].pect.Direction, distance);
-					distance = (distance < 0.2f) ? 0.2f : distance;
-					float height = (0.4f / distance) * raycastView.Height;
-					float y = (raycastView.Height - height) / 2;
-
-					// Color?
-					int ColorNS = (JT.CompassDirection(wallImpacts[i].impactDirection) == JT.NSEW.N || JT.CompassDirection(wallImpacts[i].impactDirection) == JT.NSEW.S) ? 1 : 0;
-					int[] color = (int[])(WallColors[wallImpacts[i].TileNumber][ColorNS]).Clone();
-
-					for (int c = 0; c < color.Length; c++) { // Loop through each of r, g, and b
-						color[c] = (int)(color[c] * (1 / distance));    // Use distance to darken the color
-						color[c] = (color[c] > 255) ? 255 : color[c];   // Bound to 255
-					}
-
-					canvas.FillRectangle(new SolidBrush(JT.FromRGB(color)), x, y, width, height);
+					canvas.FillRectangle(new SolidBrush(JT.FromRGB(wallImpacts[i].color)), x, y, width, wallImpacts[i].height);
 				}
 			} else {
 				Console.WriteLine("Raylock on");
