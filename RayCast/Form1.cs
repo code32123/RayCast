@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
 
+// TODO:
+//   + Floor
+//   + More Colors
+
 namespace RayCast {
 	public partial class Form1 : Form {
 		//Graphics RaycastViewCanvas;
@@ -26,7 +30,8 @@ namespace RayCast {
 
 		public readonly int[][][] WallColors = {        // Color int as found in level maps to 2 RGB values = NS and EW
 				new int[][] { new int[] {0, 0, 0 }, new int[] {0, 0, 0 } }, // ZERO - not used
-				new int[][] { new int[] {0, 0, 200 }, new int[] {0, 200, 0 } }
+				new int[][] { new int[] { 44, 122, 55 }, new int[] { 0, 92, 49 } }, // Light, Dark
+				new int[][] { new int[] { 245, 66, 129 }, new int[] { 186, 24, 54 } } // Pink, Red
 		};
 
 		public Form1() {
@@ -34,17 +39,17 @@ namespace RayCast {
 			//RaycastViewCanvas = raycastView.CreateGraphics();
 			//MinimapCanvas = minimap.CreateGraphics();
 			Level myBasicLevel = new Level(new int[][] {
-				new int[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-				new int[] {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-				new int[] {1, 0, 1, 1, 1, 1, 0, 1, 0, 1},
-				new int[] {1, 0, 1, 0, 0, 0, 0, 0, 0, 1},
-				new int[] {1, 0, 1, 0, 1, 1, 1, 1, 0, 1},
-				new int[] {1, 0, 1, 0, 1, 0, 0, 0, 0, 1},
-				new int[] {1, 0, 1, 0, 1, 1, 1, 1, 0, 1},
-				new int[] {1, 0, 1, 0, 0, 0, 0, 1, 0, 1},
-				new int[] {1, 0, 1, 1, 1, 1, 1, 1, 0, 1},
-				new int[] {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-				new int[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+				new int[] {2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+				new int[] {2, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+				new int[] {2, 0, 1, 1, 1, 1, 0, 1, 0, 2},
+				new int[] {2, 0, 1, 0, 0, 0, 0, 0, 0, 2},
+				new int[] {2, 0, 1, 0, 1, 1, 1, 1, 0, 2},
+				new int[] {2, 0, 1, 0, 1, 0, 0, 0, 0, 2},
+				new int[] {2, 0, 1, 0, 1, 1, 1, 1, 0, 2},
+				new int[] {2, 0, 1, 0, 0, 0, 0, 1, 0, 2},
+				new int[] {2, 0, 1, 1, 1, 1, 1, 1, 0, 2},
+				new int[] {2, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+				new int[] {2, 2, 2, 2, 2, 2, 2, 2, 2, 2}
 			});
 			CurrentLevel = myBasicLevel;
 			mainCamera = new Camera(70, 16, 0.05f, new JT.Pect(5.5f, 5.5f));
@@ -145,7 +150,7 @@ namespace RayCast {
 				}
 			}
 			while (CurrentLevel.Data[StartPect.yI][StartPect.xI] != 0) {
-				StartPect.Move(-DepthRes / 4);
+				StartPect.Move(-DepthRes / 8);
 				Bcolor = Brushes.Yellow;
 				if (drawRays) {
 					int ax = (int)(StartPect.x * scalingFactor) + xOffset;
@@ -154,7 +159,7 @@ namespace RayCast {
 				}
 			}
 			while (CurrentLevel.Data[StartPect.yI][StartPect.xI] == 0) {
-				StartPect.Move(DepthRes / 8);
+				StartPect.Move(DepthRes / 32);
 				Bcolor = Brushes.Green;
 				if (drawRays) {
 					int ax = (int)(StartPect.x * scalingFactor) + xOffset;
@@ -194,8 +199,9 @@ namespace RayCast {
 			// Color
 			int ColorNS = (JT.CompassDirection(impactDirection) == JT.NSEW.N || JT.CompassDirection(impactDirection) == JT.NSEW.S) ? 1 : 0;
 			int[] color = (int[])(WallColors[CurrentLevel.Data[StartPect.yI][StartPect.xI]][ColorNS]).Clone();
+			float darken = distance < 1? 1 : (1 / distance);
 			for (int c = 0; c < color.Length; c++) { // Loop through each of r, g, and b
-				color[c] = (int)(color[c] * (1 / distance));    // Use distance to darken the color
+				color[c] = (int)(color[c] * darken);    // Use distance to darken the color
 				color[c] = (color[c] > 255) ? 255 : color[c];   // Bound to 255
 			}
 
